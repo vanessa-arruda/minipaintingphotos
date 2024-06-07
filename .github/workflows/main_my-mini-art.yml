@@ -1,7 +1,8 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
+# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy ASP.Net Core app to Azure Web App - my-mini-art
+name: Build and deploy Python app to Azure Web App - my-mini-art
 
 on:
   push:
@@ -11,31 +12,39 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up .NET Core
-        uses: actions/setup-dotnet@v1
+      - name: Set up Python version
+        uses: actions/setup-python@v1
         with:
-          dotnet-version: '8.x'
-          include-prerelease: true
+          python-version: '3.12'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Create and start virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
 
-      - name: Upload artifact for deployment job
+      - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v3
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: python-app
+          path: |
+            release.zip
+            !venv/
 
   deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     needs: build
     environment:
       name: 'Production'
@@ -47,20 +56,23 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v3
         with:
-          name: .net-app
+          name: python-app
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
       
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_45AC59A42FBB4ABBB2657F0D899C6C3F }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_35749D92958A4AD7A3D7CA51E721A7F5 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7E1900237E7B488A9E9F1101276BBB57 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F1B23B6C408C4F05A47A16233B9D5C8C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7F497EBD64BE4559ACE8690898664CCE }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D47BEB6C51774350AE2438F9E3608580 }}
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
+      - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v2
+        id: deploy-to-webapp
         with:
           app-name: 'my-mini-art'
           slot-name: 'Production'
-          package: .
           
